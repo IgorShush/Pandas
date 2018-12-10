@@ -1,0 +1,62 @@
+import pandas as pd
+import numpy as np
+
+col_names = ['Airport ID', 'Name', 'City', 'Country', 'IATA', 'ICAO','Latitude','Longitude', 'Altitude', 
+             'Timezone', 'DST', 'Tz database', 'time zone', 'Type', 'Source']
+airport = pd.read_csv('airports.csv', header = None, names = col_names)
+
+europe = np.array(['Belgium', 'Germany', 'Estonia', 'Finland', 'United Kingdom',
+'Guernsey', 'Jersey', 'Isle of Man', 'Netherlands', 'Ireland',
+'Denmark', 'Luxembourg', 'Norway', 'Poland', 'Sweden', 'Spain',
+'Albania', 'Bulgaria', 'Cyprus', 'Croatia', 'France', 'Greece',
+'Hungary', 'Italy', 'Slovenia', 'Czech Republic', 'Malta',
+'Austria', 'Portugal', 'Bosnia and Herzegovina', 'Romania',
+'Switzerland', 'Turkey', 'Moldova', 'Macedonia', 'Gibraltar',
+'Serbia', 'Montenegro', 'Slovakia', 'Ukraine', 'Russia', 'Belarus',
+'Latvia', 'Lithuania','Faroe Islands', 'Greenland', 'Iceland'])
+
+#Здесь мы отобрали аэропорты Европы и заменили пропуски на np.nan
+# airport_europe = airport[airport['Country'].isin(europe) & airport["Tz database"].str.contains("Europe")]
+airport_europe = airport[airport['Country'].isin(europe)]
+airport_europe = airport_europe.replace('\\N', np.nan)
+
+#Обработанная таблица без NaN, все коды IATA уже трехбуквенные
+airport_europe = airport_europe[airport_europe['IATA'].notnull()]
+# df = df[np.isfinite(df['EPS'])]
+# df[df['EPS'].notnull()]
+
+#Все коды аэропортов
+iata_values = airport_europe['IATA'].values
+
+routes_data = pd.read_csv('routes.csv', header = None, names = ['Airline', 'Airline ID', 'Source airport', 'Source airport ID',
+                                                 'Destination airport', 'Destination airport ID', 'Codeshare',
+                                                 'Stops', 'Equipment'])
+routes_data_source_id = routes_data['Source airport'].sort_values()
+
+#Посчитанные значения прилетов
+source_airports = routes_data['Source airport'][routes_data['Source airport'].isin(iata_values)]
+source_airports = source_airports.value_counts()
+
+#Посчитанные значения вылетов
+arrived_airports = routes_data['Destination airport'][routes_data['Destination airport'].isin(iata_values)]
+arrived_airports = arrived_airports.value_counts()
+
+final_table = airport_europe[['Name', 'City', 'Country', 'IATA']]
+
+#Это табличка с индексами и общим количеством полетов
+fly_table = pd.DataFrame(dict(arrived_airports = arrived_airports, source_airports = source_airports)).reset_index()
+fly_table['Fly'] = fly_table['source_airports'].add(fly_table['arrived_airports'], fill_value=0)
+fly_table = fly_table[['index', 'Fly']]
+fly_table.columns = ['IATA', 'Fly']
+fly_table = fly_table.set_index('IATA')
+fly_table = fly_table['Fly']
+
+final_table = final_table.copy()
+final_table['Fly'] = final_table['IATA'].map(fly_table)
+
+final_table = final_table[final_table['Fly'].notnull()]
+
+# final_table = final_table[final_table['Fly'].notnull()]
+final_table = final_table.set_index(['Country', 'City'])
+
+final_table = final_table.sort_values(by=["Country", "Fly"], ascending=[True, False])
