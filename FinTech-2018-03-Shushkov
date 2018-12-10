@@ -1,0 +1,52 @@
+import pandas as pd
+import numpy as np
+
+col_names = ['Airport ID', 'Name', 'City', 'Country', 'IATA', 'ICAO','Latitude','Longitude', 'Altitude', 
+             'Timezone', 'DST', 'Tz database', 'time zone', 'Type', 'Source']
+airport = pd.read_csv('airports.csv', header = None, names = col_names, index_col='Airport ID')
+
+Australia_airports = airport[airport.Country == 'Australia'].replace('\\N', np.nan)
+
+routes = pd.read_csv('routes.csv', header = None, names = ['Airline', 'Airline ID', 'Source airport', 'Source airport ID',
+                                                 'Destination airport', 'Destination airport ID', 'Codeshare',
+                                                 'Stops', 'Equipment'])
+
+#Добавляем данные в IATA и удаляем ненужные
+Australia_airports.drop(6829, inplace=True)  #американский
+Australia_airports.loc[3317, 'IATA'] = 'ACF' #В википедии про нее есть
+Australia_airports.loc[6915, 'IATA'] = 'BXG' #В википедии про нее есть
+Australia_airports.loc[7129, 'IATA'] = 'BBL' #В википедии про нее есть
+Australia_airports.loc[8472, 'IATA'] = 'KYI' #В википедии про нее есть
+Australia_airports.loc[8476, 'IATA'] = 'WYN' #В википедии про нее есть
+Australia_airports.loc[11038, 'IATA'] = 'FLS' #В википедии про нее есть
+Australia_airports.loc[3360, 'IATA'] = 'XRH' #В википедии про нее есть
+Australia_airports.loc[8353, 'IATA'] = 'FOS' #В википедии про нее есть
+
+
+IATA = Australia_airports['IATA'].unique()
+Australia_routes = routes[routes['Source airport'].isin(IATA)]
+Other_routes = Australia_routes[(Australia_routes['Destination airport'].isin(IATA)) == False]
+final_table = Other_routes[['Source airport', 'Destination airport']]
+
+subframe = airport[['Name', 'Country', 'IATA']]
+subframe.columns = ['Name', 'Country', 'Destination airport']
+merged_table = pd.merge(final_table, subframe, on='Destination airport').dropna()
+
+continent = {'Brunei': 'Asia', 'Canada': 'North America', 'Chile': 'South America', 'Christmas Island': 'Asia', 
+           'Cook Islands': 'Oceania', 'East Timor': 'Asia', 'Fiji': 'Oceania', 'Guam': 'North America', 
+             'Hong Kong': 'Asia', 'India': 'Asia', 'Indonesia': 'Asia', 'Japan': 'Asia', 'Malaysia': 'Asia', 
+            'Mauritius': 'Africa', 'Nauru': 'Oceania', 'New Caledonia': 'Oceania', 'New Zealand': 'Oceania', 
+             'Norfolk Island': 'Oceania', 'Papua New Guinea': 'Oceania', 'Philippines': 'Asia', 'Samoa': 'Oceania',
+            'Singapore': 'Asia', 'Solomon Islands': 'Oceania', 'South Africa': 'Africa', 'South Korea': 'Asia', 
+            'Taiwan': 'Asia', 'Thailand': 'Asia', 'Tonga': 'Oceania', 'United Arab Emirates': 'Asia', 
+            'United States': 'North America', 'Vanuatu': 'Oceania', 'Vietnam': 'Asia', 'China': 'Asia'}
+
+merged_table['Continent'] = merged_table['Country'].map(continent)
+final_table = pd.pivot_table(merged_table, index = ['Continent', 'Country'], columns = 'Source airport', 
+                             aggfunc='count')['Name']
+final_table.rename(columns = {'ADL': 'Adelaide International Airport', 'BNE': 'Brisbane International Airport', 
+                        'CNS': 'Cairns International Airport', 'DRW': 'Darwin International Airport', 
+                       'MEL': 'Melbourne International Airport', 'OOL': 'Gold Coast Airport', 
+                        'PER': 'Perth International Airport', 'PHE': 'Port Hedland International Airport',
+                       'SYD': 'Sydney Kingsford Smith International Airport'}, inplace=True)
+final_table
