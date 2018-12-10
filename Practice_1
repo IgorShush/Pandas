@@ -1,0 +1,37 @@
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+col_names = ['Airport ID', 'Name', 'City', 'Country', 'IATA', 'ICAO','Latitude','Longitude', 'Altitude', 
+             'Timezone', 'DST', 'Tz database', 'time zone', 'Type', 'Source']
+airport = pd.read_csv('airports.csv', header = None, names = col_names)
+
+europe = np.array(['Belgium', 'Germany', 'Estonia', 'Finland', 'United Kingdom',
+'Guernsey', 'Jersey', 'Isle of Man', 'Netherlands', 'Ireland',
+'Denmark', 'Luxembourg', 'Norway', 'Poland', 'Sweden', 'Spain',
+'Albania', 'Bulgaria', 'Cyprus', 'Croatia', 'France', 'Greece',
+'Hungary', 'Italy', 'Slovenia', 'Czech Republic', 'Malta',
+'Austria', 'Portugal', 'Bosnia and Herzegovina', 'Romania',
+'Switzerland', 'Turkey', 'Moldova', 'Macedonia', 'Gibraltar',
+'Serbia', 'Montenegro', 'Slovakia', 'Ukraine', 'Russia', 'Belarus',
+'Latvia', 'Lithuania','Faroe Islands', 'Greenland', 'Iceland'])
+
+airport_europe = airport[(airport['Country'].isin(europe)) & (airport['IATA'].str.len() == 3)]
+airport_europe = airport_europe.replace('//N', np.nan)
+
+routes_data = pd.read_csv('routes.csv', header = None, names = ['Airline', 'Airline ID', 'Source airport', 'Source airport ID',
+                                                 'Destination airport', 'Destination airport ID', 'Codeshare',
+                                                 'Stops', 'Equipment'])
+routes_data = routes_data.replace('//N', np.nan)
+
+iata_values = airport_europe['IATA'].values
+source_airports = routes_data[(routes_data['Source airport'].isin(airport_europe['IATA'])) | 
+                              (routes_data['Destination airport'].isin(airport_europe['IATA']))]
+fly_out = source_airports.groupby('Source airport')['Destination airport'].count()
+fly_in = source_airports.groupby('Source airport')['Source airport'].count()
+Fly = fly_out.add(fly_in, fill_value=0)
+airport_europe = airport_europe.merge(Fly.to_frame(name='Fly'), left_on='IATA', right_index=True).set_index('Name')
+
+#Вот эта проклятая строчка
+airport_europe.groupby('Country')['Fly'].nlargest(3).to_frame(name='Fly')
