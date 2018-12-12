@@ -1,0 +1,44 @@
+import pandas as pd
+import numpy as np
+
+df = pd.read_csv('winter.csv')
+df.Sport.unique()
+
+#Пункт 1
+df_1976_Discipline = df[(df['Year'] == 1976) & (df['Gender'] == 'Men')]['Discipline'].unique()
+df_1976_Discipline
+
+#Пункт 2
+df_year = df[(df['Year'] == 1936) | (df['Year'] == 1994)]
+ans = df_year.groupby('Year')['Sport'].unique()
+print("1936: " + str(len(ans[1936])))
+print("1994: " + str(len(ans[1994])))
+
+#Пункт 3
+ans1 = pd.Series(ans[1936])
+ans2 = pd.Series(ans[1994])
+union_sports = ans2[ans2.isin(ans1)].unique()
+union_sports
+
+#Пункт 4
+not_union_sports = ans2[ans2.isin(ans1) == False].unique()
+not_union_sports
+
+#Пункт 5
+Bith_year = df['Year'][df['Sport'] == 'Biathlon']
+Bith_year[Bith_year > 1936].iloc[0]
+
+#Пункт 6
+df.groupby('Gender')['Medal'].count()
+
+#Пункт 7
+gender = df.groupby(['Gender', 'Medal']).count()
+gender.pivot_table(columns='Medal', index='Gender', values='City')
+
+# Пункт 8
+table = df[(df['Year'] >= 1950) & (df['Year'] <= 1980)]
+table.reindex()
+
+# Пункт 9
+large_medals = table.groupby('Country').Medal.count().nlargest(3)
+np.array(large_medals.index)
